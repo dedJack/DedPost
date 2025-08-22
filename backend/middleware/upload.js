@@ -94,12 +94,9 @@ const uploadPostMedia = upload.single('media');
 // Single file upload for profile pictures
 const uploadProfileImage = upload.single('avatar');
 
-// Multiple files upload (if needed in future)
-const uploadMultiple = upload.array('media', 5); // Max 5 files
-
 module.exports = {
   uploadPostMedia,
   uploadProfileImage,
-  uploadMultiple,
+  
   handleUploadError
 };

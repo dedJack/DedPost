@@ -1,10 +1,9 @@
-
 import React, { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
 import { fetchUserProfile } from '../store/userSlice'
-import { postService } from '../services/postService'
-import {  Calendar, FileText, Users as UsersIcon, Eye, Heart, MessageCircle } from 'lucide-react'
+import { postsAPI } from '../utils/api'   // ✅ switched to utils/api.js
+import { Calendar, FileText, Eye, Heart, MessageCircle } from 'lucide-react'
 import { format } from 'date-fns'
 import Loading from '../components/common/Loading'
 
@@ -23,9 +22,8 @@ const UserProfile = () => {
       const fetchUserPosts = async () => {
         try {
           setPostsLoading(true)
-          const response = await postService.getUserPosts(userId, 1, 12)
-          // console.log(response)
-          setUserPosts(response.posts)
+          const { data } = await postsAPI.getUserPosts(userId, { page: 1, limit: 12 })
+          setUserPosts(data.posts)
         } catch (error) {
           console.error('Failed to fetch user posts:', error)
         } finally {

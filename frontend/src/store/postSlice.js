@@ -1,13 +1,13 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
-import { postService } from '../services/postService'
+import { postsAPI } from '../utils/api'   // ✅ switched from postService
 import toast from 'react-hot-toast'
 
 export const fetchFeed = createAsyncThunk(
   'posts/fetchFeed',
   async ({ page = 1, limit = 10 }, { rejectWithValue }) => {
     try {
-      const response = await postService.getFeed(page, limit)
-      return { ...response, page }
+      const { data } = await postsAPI.getFeed({ page, limit })   
+      return { ...data, page }
     } catch (error) {
       return rejectWithValue(error.message)
     }
@@ -18,9 +18,9 @@ export const createPost = createAsyncThunk(
   'posts/createPost',
   async (postData, { rejectWithValue }) => {
     try {
-      const response = await postService.createPost(postData)
+      const { data } = await postsAPI.createPost(postData)   
       toast.success('Post created successfully!')
-      return response
+      return data
     } catch (error) {
       toast.error(error.message || 'Failed to create post')
       return rejectWithValue(error.message)
@@ -32,8 +32,8 @@ export const likePost = createAsyncThunk(
   'posts/likePost',
   async (postId, { rejectWithValue }) => {
     try {
-      const response = await postService.likePost(postId)
-      return { postId, ...response }
+      const { data } = await postsAPI.likePost(postId)   
+      return { postId, ...data }
     } catch (error) {
       return rejectWithValue(error.message)
     }
@@ -44,8 +44,8 @@ export const addComment = createAsyncThunk(
   'posts/addComment',
   async ({ postId, content }, { rejectWithValue }) => {
     try {
-      const response = await postService.addComment(postId, content)
-      return { postId, comment: response.comment } // ✅ explicitly return comment
+      const data  = await postsAPI.addComment(postId, content)   
+      return { postId, comment: data.comment }  
     } catch (error) {
       toast.error(error.message || 'Failed to add comment')
       return rejectWithValue(error.message)
@@ -57,8 +57,8 @@ export const fetchPostDetails = createAsyncThunk(
   'posts/fetchPostDetails',
   async (postId, { rejectWithValue }) => {
     try {
-      const response = await postService.getPostDetails(postId)
-      return response.post || response // ✅ normalize
+      const response  = await postsAPI.getPost(postId)  
+      return response.post || response 
     } catch (error) {
       return rejectWithValue(error.message)
     }
@@ -87,7 +87,9 @@ const postSlice = createSlice({
     },
     updatePostInFeed: (state, action) => {
       const { postId, updates } = action.payload
-      const postIndex = state.feed.findIndex(post => post._id === postId || post.id === postId) // ✅ safe match
+      const postIndex = state.feed.findIndex(
+        post => post._id === postId || post.id === postId
+      )
       if (postIndex !== -1) {
         state.feed[postIndex] = { ...state.feed[postIndex], ...updates }
       }
@@ -106,7 +108,7 @@ const postSlice = createSlice({
 
         const normalizedPosts = posts.map(p => ({
           ...p,
-          id: p.id || p._id, // ✅ normalize id
+          id: p.id || p._id,
         }))
 
         if (page === 1) {
@@ -157,7 +159,7 @@ const postSlice = createSlice({
         state.isLoading = false
         state.currentPost = {
           ...action.payload,
-          id: action.payload.id || action.payload._id, // ✅ normalize
+          id: action.payload.id || action.payload._id,
         }
       })
       .addCase(fetchPostDetails.rejected, (state, action) => {
@@ -171,7 +173,6 @@ const postSlice = createSlice({
           state.currentPost.comments.unshift(comment)
           state.currentPost.commentsCount += 1
         }
-        // Update feed post
         const postIndex = state.feed.findIndex(post => post._id === postId || post.id === postId)
         if (postIndex !== -1) {
           state.feed[postIndex].commentsCount += 1

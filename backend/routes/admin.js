@@ -337,6 +337,25 @@ router.put('/settings', adminAuth, [
     .optional()
     .isFloat({ min: 0 })
     .withMessage('Minimum payout amount must be a positive number'),
+  body('maxFileSize')
+    .optional()
+    .isInt({ min: 1 })
+    .withMessage('Max file size must be a positive integer'),
+  body('platformName')
+    .optional()
+    .trim()
+    .isLength({ min: 1, max: 100 })
+    .withMessage('Platform name must be between 1-100 characters'),
+  body('currency')
+    .optional()
+    .trim()
+    .isLength({ min: 1, max: 10 })
+    .withMessage('Currency must be between 1-10 characters'),
+  body('currencySymbol')
+    .optional()
+    .trim()
+    .isLength({ min: 1, max: 5 })
+    .withMessage('Currency symbol must be between 1-5 characters'),
   body('enableEarnings')
     .optional()
     .isBoolean()
@@ -348,7 +367,15 @@ router.put('/settings', adminAuth, [
   body('allowImageUploads')
     .optional()
     .isBoolean()
-    .withMessage('Allow image uploads must be a boolean')
+    .withMessage('Allow image uploads must be a boolean'),
+  body('autoPayoutEnabled')
+    .optional()
+    .isBoolean()
+    .withMessage('Auto payout enabled must be a boolean'),
+  body('autoPayoutThreshold')
+    .optional()
+    .isFloat({ min: 0 })
+    .withMessage('Auto payout threshold must be a positive number')
 ], async (req, res) => {
   try {
     // Check validation errors
@@ -362,8 +389,10 @@ router.put('/settings', adminAuth, [
 
     const updates = {};
     const allowedFields = [
-      'viewRate', 'likeRate', 'platformName', 'currency', 'currencySymbol',
-      'maxFileSize', 'minPayoutAmount', 'autoPayoutEnabled', 'autoPayoutThreshold',
+      'viewRate', 'likeRate',
+      'platformName', 'currency', 'currencySymbol',
+      'maxFileSize', 'minPayoutAmount', 
+      'autoPayoutEnabled', 'autoPayoutThreshold',
       'allowVideoUploads', 'allowImageUploads', 'enableEarnings'
     ];
 
@@ -376,9 +405,35 @@ router.put('/settings', adminAuth, [
 
     const updatedSettings = await Settings.updateSettings(updates);
 
+    // Return the response in the same structure as GET
     res.json({
       message: 'Settings updated successfully',
-      settings: updatedSettings
+      settings: {
+        rates: {
+          viewRate: updatedSettings.viewRate,
+          likeRate: updatedSettings.likeRate
+        },
+        platform: {
+          platformName: updatedSettings.platformName,
+          currency: updatedSettings.currency,
+          currencySymbol: updatedSettings.currencySymbol
+        },
+        uploads: {
+          maxFileSize: updatedSettings.maxFileSize,
+          allowedImageTypes: updatedSettings.allowedImageTypes,
+          allowedVideoTypes: updatedSettings.allowedVideoTypes
+        },
+        payouts: {
+          minPayoutAmount: updatedSettings.minPayoutAmount,
+          autoPayoutEnabled: updatedSettings.autoPayoutEnabled,
+          autoPayoutThreshold: updatedSettings.autoPayoutThreshold
+        },
+        features: {
+          allowVideoUploads: updatedSettings.allowVideoUploads,
+          allowImageUploads: updatedSettings.allowImageUploads,
+          enableEarnings: updatedSettings.enableEarnings
+        }
+      }
     });
 
   } catch (error) {
@@ -564,13 +619,14 @@ router.post('/payouts/bulk-approve', adminAuth, [
 
     const { payouts } = req.body;
     const results = [];
+    const processingErrors = [];
 
     for (const payout of payouts) {
       try {
         const user = await User.findById(payout.userId);
         
         if (!user) {
-          errors.push({
+          processingErrors.push({
             userId: payout.userId,
             error: 'User not found'
           });
@@ -578,7 +634,7 @@ router.post('/payouts/bulk-approve', adminAuth, [
         }
 
         if (user.pendingEarnings < payout.amount) {
-          errors.push({
+          processingErrors.push({
             userId: payout.userId,
             username: user.username,
             error: 'Insufficient pending earnings'
@@ -600,7 +656,7 @@ router.post('/payouts/bulk-approve', adminAuth, [
         });
 
       } catch (error) {
-        errors.push({
+        processingErrors.push({
           userId: payout.userId,
           error: 'Processing failed'
         });
@@ -611,11 +667,11 @@ router.post('/payouts/bulk-approve', adminAuth, [
       message: 'Bulk payout processing completed',
       summary: {
         successful: results.length,
-        failed: errors.length,
+        failed: processingErrors.length,
         totalProcessed: payouts.length
       },
       results,
-      errors
+      errors: processingErrors
     });
 
   } catch (error) {
@@ -696,7 +752,6 @@ router.delete('/posts/:postId', adminAuth, async (req, res) => {
       });
     }
 
-    // Soft delete
     post.isActive = false;
     await post.save();
 
@@ -723,4 +778,3 @@ router.delete('/posts/:postId', adminAuth, async (req, res) => {
 });
 
 module.exports = router;
-    

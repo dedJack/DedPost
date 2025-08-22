@@ -1,7 +1,5 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
-import { authService } from '../services/authService'
-import { setAuthData, clearAuthData, getAuthData } from '../services/api'
-import api from '../services/api'
+import { authAPI, setAuthToken, clearAuthData, getStoredAuth as getAuthData } from '../utils/api'
 import toast from 'react-hot-toast'
 
 // Initialize auth state from localStorage
@@ -12,18 +10,17 @@ export const register = createAsyncThunk(
   'auth/register',
   async (userData, { rejectWithValue }) => {
     try {
-      const response = await authService.register(userData)
-      
-      const { token, user } = response
-      
+      const { data } = await authAPI.register(userData)
+      const { token, user } = data
+
       if (!token || !user) {
         throw new Error('Invalid response format - missing token or user data')
       }
-      
+
       // Store auth data and set header
-      setAuthData(token, user)
-      api.defaults.headers.common['Authorization'] = `Bearer ${token}`
-      
+      localStorage.setItem('dedpost-auth', JSON.stringify({ token, user }))
+      setAuthToken(token)
+
       toast.success('Registration successful!')
       return { token, user }
     } catch (error) {
@@ -37,18 +34,17 @@ export const login = createAsyncThunk(
   'auth/login',
   async (credentials, { rejectWithValue }) => {
     try {
-      const response = await authService.login(credentials)
-      
-      const { token, user } = response
-      
+      const { data } = await authAPI.login(credentials)
+      const { token, user } = data
+
       if (!token || !user) {
         throw new Error('Invalid response format - missing token or user data')
       }
-      
+
       // Store auth data and set header
-      setAuthData(token, user)
-      api.defaults.headers.common['Authorization'] = `Bearer ${token}`
-      
+      localStorage.setItem('dedpost-auth', JSON.stringify({ token, user }))
+      setAuthToken(token)
+
       toast.success('Welcome back!')
       return { token, user }
     } catch (error) {
@@ -63,28 +59,26 @@ export const checkAuth = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const storedAuth = getAuthData()
-      
+
       if (!storedAuth?.token) {
         throw new Error('No token found')
       }
-      
-      // Set token for the request
-      api.defaults.headers.common['Authorization'] = `Bearer ${storedAuth.token}`
-      
-      const response = await authService.getCurrentUser()
-      const { user } = response
-      
+
+      setAuthToken(storedAuth.token)
+
+      const { data } = await authAPI.getCurrentUser()
+      const { user } = data
+
       if (!user) {
         throw new Error('Invalid user data')
       }
-      
+
       // Update stored user data
-      setAuthData(storedAuth.token, user)
-      
+      localStorage.setItem('dedpost-auth', JSON.stringify({ token: storedAuth.token, user }))
+
       return { user, token: storedAuth.token }
     } catch (error) {
       clearAuthData()
-      delete api.defaults.headers.common['Authorization']
       return rejectWithValue(error.message)
     }
   }
@@ -94,17 +88,17 @@ export const updateProfile = createAsyncThunk(
   'auth/updateProfile',
   async (profileData, { rejectWithValue, getState }) => {
     try {
-      const response = await authService.updateProfile(profileData)
-      const { user } = response
-      
+      const { data } = await authAPI.updateProfile(profileData)
+      const { user } = data
+
       if (!user) {
         throw new Error('Invalid response format')
       }
-      
+
       // Update stored user data
       const { auth } = getState()
-      setAuthData(auth.token, user)
-      
+      localStorage.setItem('dedpost-auth', JSON.stringify({ token: auth.token, user }))
+
       toast.success('Profile updated successfully!')
       return { user }
     } catch (error) {
@@ -116,15 +110,15 @@ export const updateProfile = createAsyncThunk(
 
 export const logout = createAsyncThunk(
   'auth/logout',
-  async (_, { dispatch }) => {
+  async () => {
     try {
-      await authService.logout()
+      // optional: await authAPI.logout() (not required in your backend)
     } catch (error) {
       console.warn('Logout API call failed:', error.message)
     } finally {
       // Always clear local auth data
       clearAuthData()
-      delete api.defaults.headers.common['Authorization']
+      setAuthToken(null)
       toast.success('Logged out successfully')
     }
   }
@@ -148,7 +142,6 @@ const authSlice = createSlice({
       state.isInitialized = true
       state.isLoading = false
     },
-    // Manual logout for cases where async logout isn't needed
     logoutSync: (state) => {
       state.user = null
       state.token = null
@@ -156,12 +149,11 @@ const authSlice = createSlice({
       state.isInitialized = true
       state.error = null
       clearAuthData()
-      delete api.defaults.headers.common['Authorization']
-    }
+      setAuthToken(null)
+    },
   },
   extraReducers: (builder) => {
     builder
-      // Register
       .addCase(register.pending, (state) => {
         state.isLoading = true
         state.error = null
@@ -180,7 +172,6 @@ const authSlice = createSlice({
         state.isAuthenticated = false
         state.isInitialized = true
       })
-      // Login
       .addCase(login.pending, (state) => {
         state.isLoading = true
         state.error = null
@@ -199,7 +190,6 @@ const authSlice = createSlice({
         state.isAuthenticated = false
         state.isInitialized = true
       })
-      // Check Auth
       .addCase(checkAuth.pending, (state) => {
         if (!state.isInitialized) {
           state.isLoading = true
@@ -221,11 +211,9 @@ const authSlice = createSlice({
         state.isInitialized = true
         state.error = null
       })
-      // Update Profile
       .addCase(updateProfile.fulfilled, (state, action) => {
         state.user = action.payload.user
       })
-      // Logout
       .addCase(logout.fulfilled, (state) => {
         state.user = null
         state.token = null

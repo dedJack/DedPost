@@ -1,277 +1,226 @@
-// src/store/adminSlice.js
-import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
-import {adminService} from '../services/adminService'
-import { toast } from 'react-hot-toast'
+import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
+import { adminAPI } from "../utils/api";
+import { toast } from "react-hot-toast";
 
 const initialState = {
   dashboard: null,
   settings: null,
+  users: [],
+  posts: [],
+  payouts: [],
+  pagination: {},
   isLoading: false,
   error: null,
   platformSettings: {
-    platformName: 'DedPost',
-    currency: 'USD',
-    currencySymbol: '$'
-  }
-}
+    platformName: "DedPost",
+    currency: "USD",
+    currencySymbol: "$",
+  },
+};
 
-export const fetchDashboard = createAsyncThunk(
-  'admin/fetchDashboard',
-  async (_, { rejectWithValue }) => {
-    try {
-      const response = await adminService.getDashboard()
-      return response
-    } catch (error) {
-      return rejectWithValue(error.message)
-    }
+// Async thunks
+export const fetchDashboard = createAsyncThunk("admin/fetchDashboard", async (_, { rejectWithValue }) => {
+  try {
+    return await adminAPI.getDashboard();
+  } catch (err) {
+    const message = err.response?.data?.message || err.message || 'Failed to fetch dashboard';
+    return rejectWithValue(message);
   }
-)
+});
 
-export const fetchUsers = createAsyncThunk(
-  'admin/fetchUsers',
-  async ({ page = 1, limit = 20, sortBy = 'createdAt', sortOrder = 'desc', role = 'all' }, { rejectWithValue }) => {
-    try {
-      const response = await adminService.getUsers(page, limit, { sortBy, sortOrder, role })
-      return response
-    } catch (error) {
-      return rejectWithValue(error.message)
-    }
+export const fetchUsers = createAsyncThunk("admin/fetchUsers", async (params = {}, { rejectWithValue }) => {
+  try {
+    const { page = 1, limit = 20, ...options } = params;
+    return await adminAPI.getUsers(page, limit, options);
+  } catch (err) {
+    const message = err.response?.data?.message || err.message || 'Failed to fetch users';
+    return rejectWithValue(message);
   }
-)
+});
 
-export const fetchPosts = createAsyncThunk(
-  'admin/fetchPosts',
-  async ({ page = 1, limit = 20, sortBy = 'createdAt', sortOrder = 'desc' }, { rejectWithValue }) => {
-    try {
-      const response = await adminService.getPosts(page, limit, { sortBy, sortOrder })
-      return response
-    } catch (error) {
-      return rejectWithValue(error.message)
-    }
+export const fetchPosts = createAsyncThunk("admin/fetchPosts", async (params = {}, { rejectWithValue }) => {
+  try {
+    const { page = 1, limit = 20, ...options } = params;
+    return await adminAPI.getPosts(page, limit, options);
+  } catch (err) {
+    const message = err.response?.data?.message || err.message || 'Failed to fetch posts';
+    return rejectWithValue(message);
   }
-)
+});
 
-export const fetchPayouts = createAsyncThunk(
-  'admin/fetchPayouts',
-  async ({ page = 1, limit = 20, minAmount = 0, sortBy = 'pendingEarnings', sortOrder = 'desc' }, { rejectWithValue }) => {
-    try {
-      const response = await adminService.getPayouts(page, limit, { minAmount, sortBy, sortOrder })
-      return response
-    } catch (error) {
-      return rejectWithValue(error.message)
-    }
+export const fetchPayouts = createAsyncThunk("admin/fetchPayouts", async (params = {}, { rejectWithValue }) => {
+  try {
+    const { page = 1, limit = 20, ...options } = params;
+    return await adminAPI.getPayouts(page, limit, options);
+  } catch (err) {
+    const message = err.response?.data?.message || err.message || 'Failed to fetch payouts';
+    return rejectWithValue(message);
   }
-)
+});
 
-export const fetchSettings = createAsyncThunk(
-  'admin/fetchSettings',
-  async (_, { rejectWithValue }) => {
-    try {
-      const response = await adminService.getSettings()
-      return response
-    } catch (error) {
-      return rejectWithValue(error.message)
-    }
+export const fetchSettings = createAsyncThunk("admin/fetchSettings", async (_, { rejectWithValue }) => {
+  try {
+    return await adminAPI.getSettings();
+  } catch (err) {
+    const message = err.response?.data?.message || err.message || 'Failed to fetch settings';
+    return rejectWithValue(message);
   }
-)
+});
 
-export const updateSettings = createAsyncThunk(
-  'admin/updateSettings',
-  async (settings, { rejectWithValue }) => {
-    try {
-      const response = await adminService.updateSettings(settings)
-      toast.success('Settings updated successfully!')
-      return response
-    } catch (error) {
-      toast.error(error.message || 'Failed to update settings')
-      return rejectWithValue(error.message)
-    }
+export const updateSettings = createAsyncThunk("admin/updateSettings", async (settings, { rejectWithValue }) => {
+  try {
+    const res = await adminAPI.updateSettings(settings);
+    toast.success("Settings updated successfully!");
+    return res;
+  } catch (err) {
+    const message = err.response?.data?.message || err.message || 'Failed to update settings';
+    toast.error(message);
+    return rejectWithValue(message);
   }
-)
+});
 
-export const approvePayout = createAsyncThunk(
-  'admin/approvePayout',
-  async ({ userId, amount }, { rejectWithValue }) => {
-    try {
-      const response = await adminService.approvePayout(userId, amount)
-      toast.success('Payout approved successfully!')
-      return response
-    } catch (error) {
-      toast.error(error.message || 'Failed to approve payout')
-      return rejectWithValue(error.message)
-    }
+export const approvePayout = createAsyncThunk("admin/approvePayout", async ({ userId, amount }, { rejectWithValue }) => {
+  try {
+    const res = await adminAPI.approvePayout(userId, amount);
+    toast.success("Payout approved successfully!");
+    return res;
+  } catch (err) {
+    const message = err.response?.data?.message || err.message || 'Failed to approve payout';
+    toast.error(message);
+    return rejectWithValue(message);
   }
-)
+});
 
-export const bulkApprovePayout = createAsyncThunk(
-  'admin/bulkApprovePayout',
-  async (payouts, { rejectWithValue }) => {
-    try {
-      const response = await adminService.bulkApprovePayout(payouts)
-      toast.success('Bulk payouts approved successfully!')
-      return response
-    } catch (error) {
-      toast.error(error.message || 'Failed to approve bulk payouts')
-      return rejectWithValue(error.message)
-    }
+export const bulkApprovePayout = createAsyncThunk("admin/bulkApprovePayout", async (payouts, { rejectWithValue }) => {
+  try {
+    const res = await adminAPI.bulkApprovePayout(payouts);
+    toast.success("Bulk payouts approved successfully!");
+    return res;
+  } catch (err) {
+    const message = err.response?.data?.message || err.message || 'Failed to approve bulk payouts';
+    toast.error(message);
+    return rejectWithValue(message);
   }
-)
+});
 
-export const updateUserStatus = createAsyncThunk(
-  'admin/updateUserStatus',
-  async ({ userId, isActive }, { rejectWithValue }) => {
-    try {
-      const response = await adminService.updateUserStatus(userId, isActive)
-      toast.success(`User ${isActive ? 'activated' : 'deactivated'} successfully!`)
-      return response
-    } catch (error) {
-      toast.error(error.message || 'Failed to update user status')
-      return rejectWithValue(error.message)
-    }
+export const updateUserStatus = createAsyncThunk("admin/updateUserStatus", async ({ userId, isActive }, { rejectWithValue }) => {
+  try {
+    const res = await adminAPI.updateUserStatus(userId, isActive);
+    toast.success(`User ${isActive ? "activated" : "deactivated"} successfully!`);
+    return res;
+  } catch (err) {
+    const message = err.response?.data?.message || err.message || 'Failed to update user status';
+    toast.error(message);
+    return rejectWithValue(message);
   }
-)
+});
 
-export const deletePost = createAsyncThunk(
-  'admin/deletePost',
-  async (postId, { rejectWithValue }) => {
-    try {
-      const response = await adminService.deletePost(postId)
-      toast.success('Post deleted successfully!')
-      return response
-    } catch (error) {
-      toast.error(error.message || 'Failed to delete post')
-      return rejectWithValue(error.message)
-    }
+export const deletePost = createAsyncThunk("admin/deletePost", async (postId, { rejectWithValue }) => {
+  try {
+    const res = await adminAPI.deletePost(postId);
+    toast.success("Post deleted successfully!");
+    return res;
+  } catch (err) {
+    const message = err.response?.data?.message || err.message || 'Failed to delete post';
+    toast.error(message);
+    return rejectWithValue(message);
   }
-)
+});
 
+// Slice
 const adminSlice = createSlice({
-  name: 'admin',
+  name: "admin",
   initialState,
-  reducers: {},
+  reducers: {
+    clearError: (state) => {
+      state.error = null;
+    },
+    setLoading: (state, action) => {
+      state.isLoading = action.payload;
+    }
+  },
   extraReducers: (builder) => {
     builder
-      // Dashboard
-      .addCase(fetchDashboard.pending, (state) => {
-        state.isLoading = true
-        state.error = null
-      })
+      // Specific cases MUST come first
       .addCase(fetchDashboard.fulfilled, (state, action) => {
-        state.isLoading = false
-        state.dashboard = action.payload.dashboard
-      })
-      .addCase(fetchDashboard.rejected, (state, action) => {
-        state.isLoading = false
-        state.error = action.payload
-      })
-
-      // Users
-      .addCase(fetchUsers.pending, (state) => {
-        state.isLoading = true
-        state.error = null
+        state.dashboard = action.payload.dashboard;
       })
       .addCase(fetchUsers.fulfilled, (state, action) => {
-        state.isLoading = false
-        state.users = action.payload.users
-        state.pagination.users = action.payload.pagination
-      })
-      .addCase(fetchUsers.rejected, (state, action) => {
-        state.isLoading = false
-        state.error = action.payload
-      })
-
-      // Posts
-      .addCase(fetchPosts.pending, (state) => {
-        state.isLoading = true
-        state.error = null
+        state.users = action.payload.users || [];
+        state.pagination.users = action.payload.pagination;
       })
       .addCase(fetchPosts.fulfilled, (state, action) => {
-        state.isLoading = false
-        state.posts = action.payload.posts
-        state.pagination.posts = action.payload.pagination
-      })
-      .addCase(fetchPosts.rejected, (state, action) => {
-        state.isLoading = false
-        state.error = action.payload
-      })
-
-      // Payouts
-      .addCase(fetchPayouts.pending, (state) => {
-        state.isLoading = true
-        state.error = null
+        state.posts = action.payload.posts || [];
+        state.pagination.posts = action.payload.pagination;
       })
       .addCase(fetchPayouts.fulfilled, (state, action) => {
-        state.isLoading = false
-        state.payouts = action.payload.payouts.users
-        state.pagination.payouts = action.payload.pagination
-      })
-      .addCase(fetchPayouts.rejected, (state, action) => {
-        state.isLoading = false
-        state.error = action.payload
-      })
-
-      // Settings
-      .addCase(fetchSettings.pending, (state) => {
-        state.isLoading = true
-        state.error = null
+        state.payouts = action.payload.payouts?.users || [];
+        state.pagination.payouts = action.payload.pagination;
       })
       .addCase(fetchSettings.fulfilled, (state, action) => {
-        state.isLoading = false
-        state.settings = action.payload.settings
-      })
-      .addCase(fetchSettings.rejected, (state, action) => {
-        state.isLoading = false
-        state.error = action.payload
-      })
-
-      // Update Settings
-      .addCase(updateSettings.pending, (state) => {
-        state.isLoading = true
+        state.settings = action.payload.settings;
+        // Update platform settings when fetching
+        if (action.payload.settings?.platform) {
+          state.platformSettings = {
+            platformName: action.payload.settings.platform.platformName || state.platformSettings.platformName,
+            currency: action.payload.settings.platform.currency || state.platformSettings.currency,
+            currencySymbol: action.payload.settings.platform.currencySymbol || state.platformSettings.currencySymbol,
+          };
+        }
       })
       .addCase(updateSettings.fulfilled, (state, action) => {
-        state.isLoading = false
-        state.settings = action.payload
-        // Update platformSettings when settings are updated
-        state.platformSettings = {
-          platformName: action.payload.platformName || state.platformSettings.platformName,
-          currency: action.payload.currency || state.platformSettings.currency,
-          currencySymbol: action.payload.currencySymbol || state.platformSettings.currencySymbol
+        state.settings = action.payload.settings;
+        // Update platform settings when updating
+        if (action.payload.settings?.platform) {
+          state.platformSettings = {
+            platformName: action.payload.settings.platform.platformName || state.platformSettings.platformName,
+            currency: action.payload.settings.platform.currency || state.platformSettings.currency,
+            currencySymbol: action.payload.settings.platform.currencySymbol || state.platformSettings.currencySymbol,
+          };
         }
       })
-      .addCase(updateSettings.rejected, (state, action) => {
-        state.isLoading = false
-        state.error = action.payload
-      })
-
-      // Approve Payout
       .addCase(approvePayout.fulfilled, (state, action) => {
-        // Remove approved user from payouts list or update their status
-        const userId = action.payload.payout.userId
-        state.payouts = state.payouts.filter(payout => payout.id !== userId)
+        const userId = action.payload.payout.userId;
+        state.payouts = state.payouts.filter((p) => p.id !== userId);
       })
-
-      // Bulk Approve Payout
       .addCase(bulkApprovePayout.fulfilled, (state, action) => {
-        // Remove approved users from payouts list
-        const approvedUserIds = action.payload.results.map(result => result.userId)
-        state.payouts = state.payouts.filter(payout => !approvedUserIds.includes(payout.id))
+        const approvedUserIds = action.payload.results.map((r) => r.userId);
+        state.payouts = state.payouts.filter((p) => !approvedUserIds.includes(p.id));
       })
-
-      // Update User Status
       .addCase(updateUserStatus.fulfilled, (state, action) => {
-        const updatedUser = action.payload.user
-        const userIndex = state.users.findIndex(user => user.id === updatedUser.id)
-        if (userIndex !== -1) {
-          state.users[userIndex].isActive = updatedUser.isActive
-        }
+        const updatedUser = action.payload.user;
+        const idx = state.users.findIndex((u) => u.id === updatedUser.id);
+        if (idx !== -1) state.users[idx].isActive = updatedUser.isActive;
       })
-
-      // Delete Post
       .addCase(deletePost.fulfilled, (state, action) => {
-        const deletedPostId = action.payload.deletedPost.id
-        state.posts = state.posts.filter(post => post.id !== deletedPostId)
+        const deletedPostId = action.payload.deletedPost.id;
+        state.posts = state.posts.filter((post) => post.id !== deletedPostId);
       })
+      
+      // Generic matchers MUST come after all addCase calls
+      .addMatcher(
+        (action) => action.type.startsWith('admin/') && action.type.endsWith('/pending'),
+        (state) => {
+          state.isLoading = true;
+          state.error = null;
+        }
+      )
+      .addMatcher(
+        (action) => action.type.startsWith('admin/') && action.type.endsWith('/rejected'),
+        (state, action) => {
+          state.isLoading = false;
+          state.error = action.payload;
+        }
+      )
+      .addMatcher(
+        (action) => action.type.startsWith('admin/') && action.type.endsWith('/fulfilled'),
+        (state) => {
+          state.isLoading = false;
+          state.error = null;
+        }
+      );
   },
-})
+});
 
-export default adminSlice.reducer
+export const { clearError, setLoading } = adminSlice.actions;
+export default adminSlice.reducer;
